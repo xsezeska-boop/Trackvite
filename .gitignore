@@ -1,0 +1,20 @@
+.build/
+.swiftpm/
+dist/
+.DS_Store
+
+# Local secrets and signing material
+.env
+.env.*
+!.env.example
+*.p12
+*.pfx
+*.key
+*.mobileprovision
+*.provisionprofile
+
+# Local editor and agent state
+.vscode/
+.idea/
+.codex/
+.agents/

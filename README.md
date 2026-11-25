@@ -1,0 +1,90 @@
+<p align="center">
+  <img src="Resources/AppIcon.png" width="128" alt="Trackvite app icon">
+</p>
+
+# Trackvite · Beta 1.0
+
+A native macOS app for focused work, task statistics and screen time. Create a task, choose your work apps, limit distractions and see where your time goes.
+
+**macOS 14 or later · SwiftUI · English interface · Beta**
+
+## Features
+
+- **Tasks:** custom durations, multiple work apps, attached files and folders, scheduled starts and daily repeats.
+- **Live task statistics:** app icons, cumulative time, distractions and idle time, with website details inside browser rows.
+- **Screen Time:** independent tracking of apps and active browser tabs. Repeated visits are grouped rather than added as duplicate apps.
+- **Daily limits:** individual app and website allowances, with custom hours and minutes. Limits pause when Screen Time is off and reset at local midnight.
+- **Optional screen text:** on-device recognition of visible text. App and website tracking do not need Screen Recording.
+- **Simple controls:** finish a task, pause tracking, manage permissions and clear the icon cache. Cache clearing shows an in-app confirmation.
+
+## Build and run
+
+Install Xcode Command Line Tools or Xcode, then run these commands from the project folder:
+
+```sh
+bash scripts/build.sh
+open dist/Trackvite.app
+```
+
+The app is built locally; generated bundles and build caches are excluded from Git. The repository includes the macOS icon. To regenerate its sizes from the PNG:
+
+```sh
+bash scripts/build-icon.sh
+```
+
+### Signing and permissions
+
+This beta does not include a Developer ID certificate or a notarized public release. Local builds use an available Apple Development or Developer ID Application signing identity, or ad-hoc signing when none is installed. You can select an identity explicitly:
+
+```sh
+TRACKVITE_SIGNING_IDENTITY="your signing identity" bash scripts/build.sh
+```
+
+Ad-hoc signing changes the app's permission identity when the signed contents change. macOS can then show an enabled permission for an older build while denying the current one. To avoid silently breaking existing grants, the build script refuses to replace a changed ad-hoc installation by default. An intentional replacement requires:
+
+```sh
+TRACKVITE_REPLACE_ADHOC=1 bash scripts/build.sh
+```
+
+After replacement, permissions may need to be granted again. If macOS retains an outdated entry, remove that Trackvite entry in System Settings and add the current `dist/Trackvite.app`. The app's Settings includes **Show app**, **Check again** and **Restart Trackvite**. The bundle identifier is `local.trackvite.prototype`.
+
+## Getting started
+
+1. Open **Settings**. Allow Accessibility for window/tab metadata and Automation for supported browsers. Screen Recording is optional and used only for screen text.
+2. Open **Tasks**, create a named task, choose its work apps, duration and distractions, then start or schedule it.
+3. View live app totals below the current task. Use **Finish task** to end it early.
+4. Open **Screen Time** and choose **Start tracking** for general activity. This is independent of task tracking.
+5. Use **Add limit** to set an app or website allowance. Click a limit's name to edit it, or turn it off at any time.
+
+## Privacy and network access
+
+- Activity, tasks, schedules, limits and icon caches are held in bounded memory. They disappear when you quit. This beta does not restore previous sessions.
+- Trackvite does not save screenshots, video, audio or activity history files. Optional OCR runs on-device; ordinary tracking reads app activation and browser metadata.
+- The app does not record keystroke contents or upload activity to an analytics backend. There are no accounts, cloud sync or subscriptions in this beta.
+- App icons are read from installed applications. Website icons are first looked up in Safari's local favicon cache when accessible.
+- Missing website icons trigger HTTPS requests to the website and its advertised icon URLs. This can include the site's home page to locate an icon, redirects and externally hosted icons. Those hosts receive normal network request information, including your IP address. Requests use an ephemeral session without persistent cookies, credentials or disk caching. The app is therefore **not entirely offline**.
+- **Clear cache** clears cached icons and failed icon lookups. It does not delete tasks or usage statistics; visible icons may be fetched again.
+
+## Known beta limitations
+
+- Website restrictions are reactive: a blocked page can load before the active tab is detected and closed. Only the verified blocked active tab is closed; the browser itself remains available.
+- Tab closing supports Safari and supported Chrome-based browsers through Automation. Firefox and Arc tab closing are not supported.
+- Restricted apps are covered by a focus/limit screen; they are not quit or hidden. This is a voluntary focus tool, not a tamper-proof parental control or network filter.
+- General activity and task statistics are separate. Daily budgets count active time tracked during this launch, including tracked time before a limit was added. Idle time is excluded from budgets.
+- Counters and histories are bounded. App/site budget counters are limited to 512 each, daily rules to 64, tasks to 100, and detailed task app/site statistics have their own caps.
+- macOS permissions and signing still require care during development. Stable signing and notarization are needed before a polished direct-download release.
+
+## Checks
+
+Standalone assertion-based Swift checks are in `Tests/`. For example, to check daily budgets:
+
+```sh
+swiftc Sources/Tracker/ScreenTimeBudget.swift Tests/ScreenTimeBudgetChecks.swift -o /tmp/trackvite-budget-checks
+/tmp/trackvite-budget-checks
+```
+
+Other checks cover task classification, cumulative statistics, schedules, subdomain matching, idle handling, bounded data and safe tab-closing scripts. Script checks do not close real user tabs. `NetworkSiteIconChecks.swift` makes real network requests.
+
+## Feedback
+
+When reporting a problem, include your macOS version, browser, steps to reproduce and expected behavior. For permission issues, specify which Settings row is affected. Redact private window titles, website addresses and screen contents before posting screenshots or logs.
