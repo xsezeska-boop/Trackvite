@@ -8,6 +8,29 @@ A native macOS app for focused work, task statistics and screen time. Create a t
 
 **macOS 14 or later · SwiftUI · English interface · Beta**
 
+<p align="center">
+  <a href="docs/screenshots/tasks.png">
+    <img src="docs/screenshots/tasks.png" width="100%" alt="Trackvite task in progress with live app usage and a website-blocked notification">
+  </a>
+  <br>
+  <sub>Focus on a task and see where your time goes.</sub>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/screen-time.png"><img src="docs/screenshots/screen-time.png" width="100%" alt="Trackvite Screen Time showing application and website activity"></a>
+      <br><strong>Screen Time</strong><br>
+      <sub>App and website usage in one place.</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/restrictions.png"><img src="docs/screenshots/restrictions.png" width="100%" alt="Trackvite website restrictions with an actionable in-app notification"></a>
+      <br><strong>Distraction limits</strong><br>
+      <sub>Block distractions with clear in-app guidance.</sub>
+    </td>
+  </tr>
+</table>
+
 ## Changes in Beta 1.1
 
 - Immediate app and website blocking without a one-minute allowance.
