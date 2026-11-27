@@ -28,6 +28,14 @@ A native macOS app for focused work, task statistics and screen time. Create a t
 - **Optional screen text:** on-device recognition of visible text. The OCR feature is optional, but Screen Recording permission is required for all tracking by the app’s strict permission policy.
 - **Simple controls:** finish a task, pause tracking, manage permissions and clear the icon cache. In-app confirmations cover task and restriction actions, screen text, tracking and cache clearing. Missing prerequisites show a dismissible hint with Open Settings or Enable Screen Time. Action buttons recheck permissions before enabling anything.
 
+## Download Beta 1.1
+
+[Download Trackvite Beta 1.1 for Apple Silicon](https://github.com/xsezeska-boop/Trackvite/releases/download/v1.1.0-beta.1/Trackvite-Beta-1.1-macOS-arm64.zip) · [Release notes](https://github.com/xsezeska-boop/Trackvite/releases/tag/v1.1.0-beta.1)
+
+Requires macOS 14 or later on Apple Silicon (M-series). This download is **not an Intel/universal build**. Unzip it and move `Trackvite.app` to Applications before granting macOS permissions. See the included `INSTALL.txt` and checksum file.
+
+**Early testing build:** ad-hoc signed, without Developer ID or Apple notarization. macOS may block launch under its default security settings. The source is available for inspection and local building; a notarized public distribution is still pending.
+
 ## Build and run
 
 Install Xcode Command Line Tools or Xcode, then run these commands from the project folder:
@@ -105,3 +113,9 @@ Other checks cover task classification, cumulative statistics, schedules, subdom
 ## Feedback
 
 When reporting a problem, include your macOS version, browser, steps to reproduce and expected behavior. For permission issues, specify which Settings row is affected. Redact private window titles, website addresses and screen contents before posting screenshots or logs.
+
+## License and contributions
+
+Trackvite is **source-available for noncommercial use** under the [PolyForm Noncommercial License 1.0.0](LICENSE), SPDX `PolyForm-Noncommercial-1.0.0`. Noncommercial use, modification and redistribution are permitted under its terms. Commercial use is not granted. Keep the license and [required notices](NOTICE) with redistributed copies. This is not an OSI-approved open-source license.
+
+Want to help? See [CONTRIBUTING.md](CONTRIBUTING.md), open an issue or submit a pull request. You do not need write access to the main repository to propose changes.
