@@ -1,6 +1,6 @@
 import Foundation
 
-struct TaskApplicationStats: Identifiable {
+struct TaskApplicationStats: Identifiable, Codable {
     let id: String
     let name: String
     var totals = FocusActivityTotals()
@@ -19,5 +19,6 @@ struct TaskApplicationStats: Identifiable {
 struct TrackingDestinations {
     let screenTimeEnabled: Bool
     let taskActive: Bool
-    var needsObservation: Bool { screenTimeEnabled || taskActive }
+    var permissionsGranted = true
+    var needsObservation: Bool { permissionsGranted && (screenTimeEnabled || taskActive) }
 }

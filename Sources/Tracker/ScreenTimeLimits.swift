@@ -7,6 +7,7 @@ final class ScreenTimeLimits: ObservableObject {
     @Published private(set) var rules: [ScreenTimeRule] = []
     @Published private(set) var budget = ScreenTimeBudget()
     @Published private(set) var message = ""
+    var onFeedback: ((String, Bool) -> Void)?
     var onDeadline: (() -> Void)?
     var onChange: (() -> Void)?
     private var enabled = false
@@ -16,8 +17,13 @@ final class ScreenTimeLimits: ObservableObject {
     private var job: Task<Void, Never>?
     private var version = UUID()
 
+    func restore(_ state: SavedState) {
+        rules = state.rules
+        budget = state.budget
+        budget.rollDay(Date())
+    }
     func add(apps: [FocusAppItem], sites: Set<String>, minutes: Int) {
-        guard (1...1440).contains(minutes) else { return }
+        guard (0...1440).contains(minutes) else { return }
         let targets = apps.filter { !BrowserMonitor.browsers.contains($0.id) }.map {
             ScreenTimeRule(id: $0.id, name: $0.name, isSite: false, minutes: minutes)
         } + sites.sorted().map { ScreenTimeRule(id: $0, name: $0, isSite: true, minutes: minutes) }
@@ -26,11 +32,13 @@ final class ScreenTimeLimits: ObservableObject {
             else if rules.count < 64 { rules.append(rule) }
         }
         changed()
+        onFeedback?("Restriction saved", true)
     }
-    func remove(_ rule: ScreenTimeRule) { rules.removeAll { $0.id == rule.id && $0.isSite == rule.isSite }; changed() }
+    func remove(_ rule: ScreenTimeRule) { rules.removeAll { $0.id == rule.id && $0.isSite == rule.isSite }; changed(); onFeedback?("Restriction removed", false) }
     func toggle(_ rule: ScreenTimeRule) {
         guard let i = rules.firstIndex(of: rule) else { return }
         rules[i].enabled.toggle(); changed()
+        onFeedback?(rules[i].enabled ? "Restriction enabled" : "Restriction disabled", rules[i].enabled)
     }
     private func changed() {
         version = UUID(); job?.cancel(); job = nil
@@ -124,9 +132,9 @@ private struct LimitReachedView: View {
     var body: some View {
         VStack(spacing: 20) {
             ApplicationIcon(bundleID: rule.id, name: rule.name)
-            Text("Daily limit reached").font(.title)
+            Text(rule.minutes == 0 ? "App blocked" : "Daily limit reached").font(.title)
             Text(rule.name).font(.title3).foregroundStyle(.secondary)
-            Text("Available again tomorrow").foregroundStyle(.secondary)
+            Text(rule.minutes == 0 ? "Blocked until you turn off this limit" : "Available again tomorrow").foregroundStyle(.secondary)
             Button("Turn off limit", action: disable).buttonStyle(.borderedProminent)
         }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(red: 0.065, green: 0.075, blue: 0.085))
     }

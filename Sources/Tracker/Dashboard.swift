@@ -28,16 +28,19 @@ struct Dashboard: View {
         }
         .overlay(alignment: .topTrailing) {
             if let notice = tracker.notice {
-                InAppNoticeView(notice: notice) { tracker.dismissNotice(notice.id) }
+                InAppNoticeView(notice: notice, dismiss: { tracker.dismissNotice(notice.id) }, performAction: {
+                    if let destination = tracker.performNoticeAction(notice.id) { section = destination }
+                })
                     .padding(24)
                     .id(notice.id)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
         .animation(.easeInOut(duration: 0.2), value: tracker.notice?.id)
-        .task(id: tracker.notice?.id) {
-            guard let id = tracker.notice?.id else { return }
-            do { try await Task.sleep(nanoseconds: 4_000_000_000) } catch { return }
+        .task(id: "\(tracker.notice?.id.uuidString ?? ""):\(windowVisible)") {
+            guard windowVisible, let current = tracker.notice else { return }
+            let id = current.id
+            do { try await Task.sleep(nanoseconds: current.action == nil ? 4_000_000_000 : 8_000_000_000) } catch { return }
             tracker.dismissNotice(id)
         }
         .font(.system(size: 14))
@@ -123,14 +126,17 @@ struct Dashboard: View {
         VStack(alignment: .leading, spacing: 22) {
             HStack {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(tracker.isTracking ? "Tracking is on" : "Tracking is paused").font(.headline)
-                    Text("Your app and website usage, separate from tasks.").font(.caption).foregroundStyle(.secondary)
+                    Text(!tracker.trackingAllowed ? "Permissions required" : tracker.isTracking ? "Tracking is on" : "Tracking is paused").font(.headline)
+                    Text(tracker.trackingAllowed ? "Your app and website usage, separate from tasks." : "Allow Accessibility, Screen Recording and browser access in Settings.").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button { tracker.toggle() } label: {
                     Label(tracker.isTracking ? "Pause tracking" : "Start tracking", systemImage: tracker.isTracking ? "stop.fill" : "play.fill")
                         .padding(.horizontal, 14).padding(.vertical, 10).foregroundStyle(.black).background(accent, in: Capsule())
                 }.buttonStyle(ClickTargetButtonStyle())
+            }
+            if !tracker.trackingAllowed {
+                Button("Open Settings") { section = "Settings" }
             }
             ScreenTimeLimitsView(limits: tracker.limits, tracking: tracker.isTracking)
             activity

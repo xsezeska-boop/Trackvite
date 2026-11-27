@@ -23,6 +23,8 @@ struct FocusActivityChecks {
                 assert(destination.needsObservation == (screen || task))
                 assert(destination.screenTimeEnabled == screen)
                 assert(destination.taskActive == task)
+                let denied = TrackingDestinations(screenTimeEnabled: screen, taskActive: task, permissionsGranted: false)
+                assert(!denied.needsObservation) // Tasks must never bypass the permission gate.
             }
         }
         print("PASS: task app classification, blocked sites take priority, idle/other separated, totals and invalid intervals")

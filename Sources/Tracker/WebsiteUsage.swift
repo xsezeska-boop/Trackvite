@@ -1,6 +1,6 @@
 import Foundation
 
-struct BrowserPage: Equatable {
+struct BrowserPage: Equatable, Codable {
     let id: String
     let domain: String
     let title: String
@@ -15,13 +15,13 @@ struct BrowserPage: Equatable {
     }
 }
 
-struct WebsiteUsage: Identifiable {
+struct WebsiteUsage: Identifiable, Codable {
     let page: BrowserPage
     var id: String { page.id }
     var seconds: Double
 }
 
-struct WebsiteLedger {
+struct WebsiteLedger: Codable {
     private(set) var totals: [String: WebsiteUsage] = [:]
     static func domain(_ raw: String) -> String? {
         guard raw.count <= 8192, let url = URLComponents(string: raw),

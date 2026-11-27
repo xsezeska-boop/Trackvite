@@ -6,7 +6,7 @@ enum FocusActivityKind: String {
     case other = "Other"
     case idle = "Idle"
 }
-struct FocusActivityTotals {
+struct FocusActivityTotals: Codable {
     var work: Double = 0
     var distraction: Double = 0
     var other: Double = 0

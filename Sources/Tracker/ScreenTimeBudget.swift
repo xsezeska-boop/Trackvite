@@ -1,6 +1,6 @@
 import Foundation
 
-struct ScreenTimeRule: Identifiable, Equatable {
+struct ScreenTimeRule: Identifiable, Equatable, Codable {
     let id: String
     let name: String
     let isSite: Bool
@@ -9,7 +9,7 @@ struct ScreenTimeRule: Identifiable, Equatable {
 }
 
 /// Bounded daily counters, separate from task statistics and the clearable activity view.
-struct ScreenTimeBudget {
+struct ScreenTimeBudget: Codable {
     private(set) var day: Date = .distantPast
     private var apps: [String: Double] = [:]
     private var sites: [String: Double] = [:]
@@ -23,6 +23,11 @@ struct ScreenTimeBudget {
         guard !idle, seconds.isFinite, seconds > 0 else { return }
         if apps[app] != nil || apps.count < 512 { apps[app, default: 0] += seconds }
         if let domain, sites[domain] != nil || sites.count < 512 { sites[domain, default: 0] += seconds }
+    }
+    var isValidSavedState: Bool {
+        apps.count <= 512 && sites.count <= 512 &&
+        Array(apps.values).allSatisfy { $0.isFinite && $0 >= 0 } &&
+        Array(sites.values).allSatisfy { $0.isFinite && $0 >= 0 }
     }
     func used(_ rule: ScreenTimeRule) -> Double {
         if !rule.isSite { return apps[rule.id] ?? 0 }

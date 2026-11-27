@@ -22,7 +22,7 @@ struct ScreenTimeLimitsView: View {
                     else { ApplicationIcon(bundleID: rule.id, name: rule.name) }
                     VStack(alignment: .leading, spacing: 4) {
                         Button(rule.name) { editing = rule }.buttonStyle(ClickTargetButtonStyle()).fontWeight(.medium).help("Edit limit")
-                        Text(!rule.enabled ? "Off" : "\(minutes(limits.budget.remaining(rule))) left of \(rule.minutes) min")
+                        Text(!rule.enabled ? "Off" : rule.minutes == 0 ? "Blocked" : "\(minutes(limits.budget.remaining(rule))) left of \(rule.minutes) min")
                             .font(.caption).foregroundStyle(rule.enabled && limits.budget.remaining(rule) <= 0 ? .orange : .secondary)
                     }
                     Spacer()
@@ -52,22 +52,29 @@ private struct ScreenTimeLimitEditor: View {
     @Environment(\.dismiss) private var dismiss
     @State private var apps: Set<String> = []
     @State private var sites: Set<String> = []
+    @State private var blockNow = true
     @State private var hours = "0"
     @State private var minutes = "0"
     @State private var choosing = false
     private var duration: Int? {
+        if blockNow { return 0 }
         guard let h = Int(hours), let m = Int(minutes), (0...24).contains(h), (0...59).contains(m), (1...1440).contains(h * 60 + m) else { return nil }
         return h * 60 + m
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            HStack { Text("Daily limit").font(.title2).fontWeight(.semibold); Spacer(); Button("Cancel") { dismiss() } }
+            HStack { Text("Restriction").font(.title2).fontWeight(.semibold); Spacer(); Button("Cancel") { dismiss() } }
             Button { choosing = true } label: {
                 HStack {
                     Text(apps.isEmpty && sites.isEmpty ? "Choose apps and websites" : "\(apps.count) apps · \(sites.count) websites")
                     Spacer(); Image(systemName: "chevron.right")
                 }.padding(14).background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
             }.buttonStyle(ClickTargetButtonStyle())
+            Picker("Restriction", selection: $blockNow) {
+                Text("Block now").tag(true)
+                Text("Daily allowance").tag(false)
+            }.pickerStyle(.segmented).labelsHidden()
+            if !blockNow {
             HStack {
                 Text("Time per day"); Spacer()
                 TextField("0", text: $hours).frame(width: 48).accessibilityLabel("Hours")
@@ -75,9 +82,13 @@ private struct ScreenTimeLimitEditor: View {
                 TextField("0", text: $minutes).frame(width: 48).accessibilityLabel("Minutes")
                 Text("min")
             }.textFieldStyle(.roundedBorder)
-            Text("Each selection gets this allowance. Website limits close the active tab in Safari and supported Chrome-based browsers after detection. Apps are covered by a limit screen.")
+            } else {
+                Text("Blocked while Screen Time is tracking, until you turn off or remove the limit.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Text("Website limits close the active tab after detection. Apps are covered by a limit screen.")
                 .font(.caption).foregroundStyle(.secondary)
-            HStack { Spacer(); Button(initialRule == nil ? "Add limit" : "Save") {
+            HStack { Spacer(); Button(initialRule == nil ? (blockNow ? "Block" : "Add limit") : "Save") {
                 guard let duration else { return }
                 limits.add(apps: catalog.apps.filter { apps.contains($0.id) }, sites: sites, minutes: duration)
                 dismiss()
@@ -88,12 +99,13 @@ private struct ScreenTimeLimitEditor: View {
                 guard !initialized else { return }; initialized = true
                 if let rule = initialRule {
                     if rule.isSite { sites = [rule.id] } else { apps = [rule.id] }
+                    blockNow = rule.minutes == 0
                     hours = String(rule.minutes / 60); minutes = String(rule.minutes % 60)
                 }
             }
             .sheet(isPresented: $choosing) {
                 DistractionPicker(apps: catalog.apps, loading: catalog.loading, selectedApps: $apps, selectedSites: $sites,
-                                  heading: "Choose apps and websites", subtitle: "Each selection gets its own daily allowance.")
+                                  heading: "Choose apps and websites", subtitle: "Choose what to restrict.")
             }
     }
 }

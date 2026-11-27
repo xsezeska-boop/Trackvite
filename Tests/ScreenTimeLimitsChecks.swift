@@ -22,6 +22,9 @@ import AppKit
         assert(limits.budget.used(rule) == used) // Editing never resets today's allowance.
         limits.remove(limits.rules.first { $0.isSite }!)
         assert(limits.rules.count == 1)
+        limits.add(apps: [.init(id: rule.id, name: "Editor", running: false)], sites: [], minutes: 0)
+        assert(limits.rules.first { $0.id == rule.id }?.minutes == 0)
+        assert(limits.budget.remaining(limits.rules.first!) == 0)
         print("PASS: browsers excluded from app limits, off by default, pause/resume accounting, editing preserves usage, removal")
     }
 }

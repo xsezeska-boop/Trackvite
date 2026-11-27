@@ -27,7 +27,7 @@ struct TaskActivityCard: View {
                 }
                 HStack(spacing: 10) {
                     Image(systemName: "circle.fill").font(.system(size: 7)).foregroundStyle(tint)
-                    Text(tracker.currentPage?.title ?? tracker.currentApp).lineLimit(1)
+                    Text(tracker.trackingAllowed ? (tracker.currentPage?.title ?? tracker.currentApp) : "Tracking paused — permissions required").lineLimit(1)
                     Spacer()
                     Text(tracker.taskActivityKind?.rawValue ?? "Not tracked").foregroundStyle(.secondary)
                 }.font(.caption)

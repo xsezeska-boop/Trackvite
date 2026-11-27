@@ -1,6 +1,6 @@
 import Foundation
 
-struct FocusPlan: Identifiable {
+struct FocusPlan: Identifiable, Codable {
     var id = UUID()
     var title: String
     var detail: String

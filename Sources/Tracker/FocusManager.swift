@@ -10,6 +10,22 @@ final class FocusManager: ObservableObject {
     @Published var browserStatus = "Website blocking requires browser access."
     @Published private(set) var applications: [UUID: [String: TaskApplicationStats]] = [:]
     @Published private(set) var activity: [UUID: FocusActivityTotals] = [:]
+    private var trackingAccess = true
+    func setTrackingAccess(_ allowed: Bool) {
+        guard trackingAccess != allowed else { return }
+        trackingAccess = allowed
+        if !allowed {
+            tabVersion = UUID(); tabJob?.cancel(); tabJob = nil
+            dismissReminder(); closeShield()
+            active.removeAll()
+        } else {
+            evaluate()
+        }
+    }
+    var authorizeStart: (() -> Bool)?
+    var executionAllowed: (() -> Bool)?
+    private func requestStart() -> Bool { authorizeStart?() ?? trackingAccess }
+    var onFeedback: ((String) -> Void)?
     var beforeStateChange: (() -> Void)?
     var onStateChange: (() -> Void)?
     private var tabJob: Task<Void, Never>?
@@ -37,22 +53,32 @@ final class FocusManager: ObservableObject {
             Task { @MainActor in self?.evaluate() }
         })
     }
+    func restore(_ state: SavedState) {
+        plans = state.plans
+        activity = state.taskTotals
+        applications = state.taskApps
+        evaluate()
+    }
     func add(_ input: FocusPlan) {
         var plan = input
         plan.normalizeWorkspace()
         guard plans.count < 100 else { message = "You can keep up to 100 tasks."; return }
         guard !plan.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               (1...720).contains(plan.minutes) else { return }
+        if plan.activeWindow(at: Date()) != nil && !requestStart() { return }
         plans.append(plan)
         evaluate()
+        onFeedback?(plan.activeWindow(at: Date()) == nil ? "Task scheduled" : "Task started")
     }
     func update(_ input: FocusPlan) {
         var plan = input
         plan.normalizeWorkspace()
         guard let index = plans.firstIndex(where: { $0.id == plan.id }), (1...720).contains(plan.minutes) else { return }
+        if plan.activeWindow(at: Date()) != nil && !requestStart() { return }
         plans[index] = plan
         skipped[plan.id] = nil
         evaluate()
+        onFeedback?("Task updated")
     }
     func shutdown() {
         timer?.invalidate()
@@ -61,29 +87,36 @@ final class FocusManager: ObservableObject {
         closeShield()
         panels.removeAll()
     }
-    func remove(_ id: UUID) { plans.removeAll { $0.id == id }; skipped[id] = nil; evaluate(); activity[id] = nil; applications[id] = nil }
+    func remove(_ id: UUID) { plans.removeAll { $0.id == id }; skipped[id] = nil; evaluate(); activity[id] = nil; applications[id] = nil; onFeedback?("Task deleted") }
     func toggle(_ id: UUID) {
         guard let index = plans.firstIndex(where: { $0.id == id }) else { return }
-        plans[index].enabled.toggle()
+        var next = plans[index]; next.enabled.toggle()
+        if next.activeWindow(at: Date()) != nil && !requestStart() { return }
+        plans[index] = next
         evaluate()
+        onFeedback?(plans[index].enabled ? "Schedule enabled" : "Schedule disabled")
     }
     func complete(_ id: UUID) {
         guard let index = plans.firstIndex(where: { $0.id == id }) else { return }
-        plans[index].completed.toggle()
+        var next = plans[index]; next.completed.toggle()
+        if next.activeWindow(at: Date()) != nil && !requestStart() { return }
+        plans[index] = next
         evaluate()
     }
     func startNow(_ id: UUID) {
-        guard let index = plans.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = plans.firstIndex(where: { $0.id == id }), requestStart() else { return }
         plans[index].start = Date()
         plans[index].enabled = true
         plans[index].completed = false
         skipped[id] = nil
         evaluate()
+        onFeedback?("Task started")
     }
     func finishTask(_ id: UUID) {
         guard let index = plans.firstIndex(where: { $0.id == id }), !plans[index].completed else { return }
         plans[index].completed = true
         evaluate()
+        onFeedback?("Task finished")
     }
     func stopCurrent() {
         let now = Date()
@@ -101,7 +134,10 @@ final class FocusManager: ObservableObject {
         let previous = Set(active.map(\.id))
         let now = Date()
         skipped = skipped.filter { $0.value > now }
-        active = plans.filter { $0.activeWindow(at: now) != nil && skipped[$0.id] == nil }
+        let eligible = plans.filter { $0.activeWindow(at: now) != nil && skipped[$0.id] == nil }
+        let canExecute = trackingAccess && (executionAllowed?() ?? true)
+        active = canExecute ? eligible : []
+        if !canExecute, !eligible.isEmpty { onFeedback?("Permissions required") }
         // Preserve an existing shield while rules are recalculated; don't flash it off/on.
         if active.isEmpty { closeShield() }
         if active.isEmpty { message = "No active task." }
@@ -114,14 +150,17 @@ final class FocusManager: ObservableObject {
             RunLoop.main.add(timer!, forMode: .common)
         }
         onStateChange?()
-        if let app = NSWorkspace.shared.frontmostApplication { check(app: app) }
+        if trackingAccess, let app = NSWorkspace.shared.frontmostApplication { check(app: app) }
         if presentation.key == nil, active.contains(where: { !previous.contains($0.id) }) {
-            showReminder("Task started", text: "Distractions are blocked for this task.")
+            onFeedback?("Task started")
+            if trackingAccess && (!NSApplication.shared.isActive || onFeedback == nil) {
+                showReminder("Task started", text: "Distractions are blocked for this task.")
+            }
         }
     }
     func clearActivity() { activity.removeAll(); applications.removeAll() }
     func recordActivity(from start: Date, to end: Date, app: String, domain: String?, idle: Bool, appName: String) {
-        guard end > start else { return }
+        guard trackingAccess, end > start else { return }
         for plan in active {
             guard let window = plan.activeWindow(at: start) ?? plan.activeWindow(at: end.addingTimeInterval(-0.001)) else { continue }
             let seconds = min(end, window.end).timeIntervalSince(max(start, window.start))
@@ -139,7 +178,7 @@ final class FocusManager: ObservableObject {
         }
     }
     func check(app: NSRunningApplication, domain: String? = nil, domainResolved: Bool = false, siteReadable: Bool = true) {
-        guard !active.isEmpty, app.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
+        guard trackingAccess, !active.isEmpty, app.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
         if domainResolved || domain != nil {
             browserPID = app.processIdentifier
             siteState = domain.map(FocusSiteState.website) ?? (siteReadable ? .noWebsite : .unavailable)
@@ -226,6 +265,7 @@ final class FocusManager: ObservableObject {
         }
     }
     func foregroundChanged(_ app: NSRunningApplication) {
+        guard trackingAccess else { return }
         let changed = lastForegroundPID != app.processIdentifier
         lastForegroundPID = app.processIdentifier
         guard app.bundleIdentifier != Bundle.main.bundleIdentifier else { return }

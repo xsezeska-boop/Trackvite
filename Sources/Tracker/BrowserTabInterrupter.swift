@@ -5,14 +5,14 @@ enum BrowserTabInterrupter {
     enum Result { case changed, stale, denied, unsupported, failed }
     struct Page { let url: String }
     static func supported(_ bundle: String) -> Bool {
-        BrowserMonitor.browsers.contains(bundle) && !["org.mozilla.firefox", "company.thebrowser.Browser"].contains(bundle)
+        BrowserRegistry.shared.scripting(bundle) != .accessibility
     }
     static func quote(_ text: String) -> String {
         "\"" + text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
             .replacingOccurrences(of: "\r", with: "\\r").replacingOccurrences(of: "\n", with: "\\n") + "\""
     }
     static func tab(_ bundle: String) -> String {
-        bundle.hasPrefix("com.apple.Safari") ? "current tab of front window" : "active tab of front window"
+        BrowserRegistry.shared.scripting(bundle) == .safari ? "current tab of front window" : "active tab of front window"
     }
     static func read(_ bundle: String) -> (Page?, Result) {
         guard supported(bundle) else { return (nil, .unsupported) }

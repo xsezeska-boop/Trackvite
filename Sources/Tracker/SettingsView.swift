@@ -11,7 +11,7 @@ struct SettingsView: View {
                     tracker.requestAccessibility()
                 }
                 Divider()
-                row("Screen text", detail: "Screen Recording · optional", allowed: tracker.screenGranted) {
+                row("Screen text", detail: "Screen Recording · required", allowed: tracker.screenGranted) {
                     tracker.requestScreen()
                 }
                 if !tracker.accessibilityGranted || !tracker.screenGranted {
@@ -23,31 +23,37 @@ struct SettingsView: View {
                 HStack {
                     Button("Show app") { tracker.showApplication() }
                     Spacer()
-                    Button("Check again") { tracker.retryBrowserAccess(); access.refresh() }
+                    Button("Check again") { tracker.checkAccessWithFeedback(); access.refresh() }
                     Button("Restart Trackvite") { confirmRestart = true }
                 }
             }
             group("Browsers") {
                 if access.browsers.isEmpty {
-                    Text("Open Safari or a Chrome-based browser to connect it.").foregroundStyle(.secondary).font(.callout)
+                    Text("No installed web browsers detected.").foregroundStyle(.secondary).font(.callout)
                 }
                 ForEach(access.browsers) { browser in
                     HStack(spacing: 12) {
                         ApplicationIcon(bundleID: browser.id, name: browser.name)
                         Text(browser.name)
                         Spacer()
+                        if browser.embedded {
+                            Text("Built-in browser").font(.caption).foregroundStyle(.secondary)
+                                .padding(.horizontal, 8).padding(.vertical, 4)
+                                .background(.white.opacity(0.05), in: Capsule())
+                        }
                         Text(browser.label).font(.caption).foregroundStyle(browser.allowed ? .green : .secondary)
                         Button(browser.allowed ? "Manage" : "Connect") {
-                            if browser.allowed || browser.code == -1743 { tracker.openPrivacy("Automation") }
-                            else { access.connect(browser.id) { tracker.retryBrowserAccess() } }
-                        }
+                            if browser.code == -25212 { tracker.requestAccessibility() }
+                            else if browser.allowed || browser.code == -1743 { tracker.openPrivacy("Automation") }
+                            else { access.connect(browser.id) { tracker.checkAccessWithFeedback() } }
+                        }.disabled(browser.code == -600)
                     }.padding(.vertical, 4)
                 }
-                Text("Browser access enables tab tracking and website limits.").font(.caption).foregroundStyle(.secondary)
+                Text("Connect at least one browser. Accessibility, Screen Recording and browser access are required for all tracking.").font(.caption).foregroundStyle(.secondary)
             }
             group("Screen text") {
                 Toggle("Read visible text", isOn: $tracker.screenEnabled).toggleStyle(.switch)
-                Text(tracker.screenEnabled ? (tracker.isTracking ? tracker.screenStats : "Starts when Screen Time is tracking.") : "Optional. App and website tracking work without it.")
+                Text(tracker.screenEnabled ? (tracker.isTracking ? tracker.screenStats : "Starts when Screen Time is tracking.") : "Text recognition is optional. Screen Recording permission is required for all tracking.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             group("Data") {
@@ -71,7 +77,7 @@ struct SettingsView: View {
         .alert("Restart Trackvite?", isPresented: $confirmRestart) {
             Button("Cancel", role: .cancel) {}
             Button("Restart") { tracker.restartApplication() }
-        } message: { Text("Current tasks and activity will clear. Newly granted permissions will be checked on launch.") }
+        } message: { Text("Tasks and activity are saved locally. Permissions are checked again on launch.") }
 
     }
     private func row(_ name: String, detail: String, allowed: Bool, action: @escaping () -> Void) -> some View {

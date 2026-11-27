@@ -4,10 +4,7 @@ import ApplicationServices
 /// Reads browser chrome/document metadata only, never traverses page content.
 @MainActor
 final class BrowserMonitor {
-    nonisolated static let browsers: Set<String> = ["com.apple.Safari", "com.apple.SafariTechnologyPreview",
-        "com.google.Chrome", "com.google.Chrome.canary", "org.chromium.Chromium",
-        "com.microsoft.edgemac", "com.brave.Browser", "company.thebrowser.Browser",
-        "com.operasoftware.Opera", "org.mozilla.firefox", "com.vivaldi.Vivaldi"]
+    nonisolated static var browsers: Set<String> { BrowserRegistry.shared.ids }
     var onPage: ((BrowserPage?, String, Bool) -> Void)?
     private var observer: AXObserver?
     private var application: AXUIElement?
@@ -30,6 +27,7 @@ final class BrowserMonitor {
     }
 
     func start(_ app: NSRunningApplication?) {
+        if let url = app?.bundleURL { BrowserRegistry.shared.register(url) }
         if let app, pid == app.processIdentifier { scheduleRead(); return }
         stop()
         guard let app, Self.browsers.contains(app.bundleIdentifier ?? "") else { return }
@@ -178,8 +176,8 @@ final class BrowserMonitor {
         return Result(page: addressPage, elements: Array(targets.prefix(4)), message: addressPage == nil ? "Tab unavailable" : "Tab connected")
     }
     nonisolated private static func readAutomation(_ bundle: String, elements: [AXUIElement], allowed: Bool) -> Result {
-        let safari = ["com.apple.Safari", "com.apple.SafariTechnologyPreview"].contains(bundle)
-        let chromium = browsers.contains(bundle) && !["org.mozilla.firefox", "company.thebrowser.Browser"].contains(bundle) && !safari
+        let safari = BrowserRegistry.shared.scripting(bundle) == .safari
+        let chromium = BrowserRegistry.shared.scripting(bundle) == .chromium
         guard safari || chromium else {
             return Result(page: nil, elements: elements, message: "Tab unavailable. Allow Accessibility or use Safari or Chrome.")
         }
@@ -187,7 +185,7 @@ final class BrowserMonitor {
             return Result(page: nil, elements: elements, message: "Allow browser access in System Settings → Privacy & Security → Automation.")
         }
         let expression = safari ? "{URL of current tab of front window, name of current tab of front window}" : "{URL of active tab of front window, title of active tab of front window}"
-        let source = "with timeout of 2 seconds\ntell application id \"\(bundle)\"\nif (count of windows) is 0 then return {}\nreturn \(expression)\nend tell\nend timeout"
+        let source = "with timeout of 2 seconds\ntell application id \(BrowserTabInterrupter.quote(bundle))\nif (count of windows) is 0 then return {}\nreturn \(expression)\nend tell\nend timeout"
         var error: NSDictionary?
         let result = NSAppleScript(source: source)?.executeAndReturnError(&error)
         if let error {
